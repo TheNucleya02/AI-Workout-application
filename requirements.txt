@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 langgraph
 pydantic
 streamlit
@@ -7,3 +7,4 @@ sqlalchemy
 langchain-google-genai
 dotenv
 matplotlib
+python-multipart
