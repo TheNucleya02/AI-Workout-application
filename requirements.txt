@@ -8,3 +8,6 @@ langchain-google-genai
 dotenv
 matplotlib
 python-multipart
+passlib[bcrypt]
+pydantic[email]
+python-jose[cryptography]
