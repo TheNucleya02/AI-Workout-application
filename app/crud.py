@@ -30,21 +30,33 @@ def authenticate_user(db: Session, username: str, password: str):
         return None
     return user
 
-def create_user_profile(user_profile: schemas.UserProfileCreate, db: Session):
-    db_user_profile = models.UserProfile(
-        age = user_profile.age,
-        height_cm = user_profile.age,
-        weight_kg = user_profile.age,
-        gender = user_profile.age,
-        activity_level = user_profile.age,
-        goal_type = user_profile.age,
-        target_weight = user_profile.age,
-        target_days = user_profile.age
-    )
-    db.add(db_user_profile)
+def get_user_profile(db: Session, user_id: int):
+    return db.query(models.UserProfile).filter_by(user_id=user_id).first()
+
+def create_user_profile(db: Session, profile_in: schemas.UserProfileCreate, user_id: int):
+    profile = models.UserProfile(**profile_in.model_dump(), user_id=user_id)
+    db.add(profile)
     db.commit()
-    db.refresh(db_user_profile)
-    return db_user_profile
+    db.refresh(profile)
+    return profile
+
+def update_user_profile(db: Session, profile_in: schemas.UserProfileUpdate, user_id: int):
+    profile = get_user_profile(db, user_id)
+    if not profile:
+        return None
+    for k, v in profile_in.model_dump(exclude_unset=True).items():
+        setattr(profile, k, v)
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+def delete_user_profile(db: Session, user_id: int):
+    profile = get_user_profile(db, user_id)
+    if profile:
+        db.delete(profile)
+        db.commit()
+    return profile
+
 
 
 

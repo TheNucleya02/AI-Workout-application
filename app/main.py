@@ -38,32 +38,31 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 async def read_users_me(current_user: schemas.User = Depends(auth.get_current_user)):
     return current_user
 
-@app.get("/profile")
-def get_profile():
-    pass
-
-@app.post("/profile", response_model=schemas.UserProfile)
-def create_profile(
-    profile_in: schemas.UserProfileCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    existing = db.query(models.UserProfile).filter_by(user_id=current_user.id).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Profile already exists")
-    profile = models.UserProfile(**profile_in.dict(), user_id=current_user.id)
-    db.add(profile)
-    db.commit()
-    db.refresh(profile)
+@app.get("/profile", response_model=schemas.UserProfile)
+def get_profile(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    profile = crud.get_user_profile(db, current_user.id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
     return profile
 
-@app.put("/profile")
-def update_profile():
-    pass
+@app.post("/profile", response_model=schemas.UserProfile)
+def create_profile(profile_in: schemas.UserProfileCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if crud.get_user_profile(db, current_user.id):
+        raise HTTPException(status_code=400, detail="Profile already exists")
+    return crud.create_user_profile(db, profile_in, current_user.id)
 
-@app.delete("/profile")
-def delete_profile():
-    pass
+@app.put("/profile", response_model=schemas.UserProfile)
+def update_profile(profile_in: schemas.UserProfileUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    updated = crud.update_user_profile(db, profile_in, current_user.id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return updated
+
+@app.delete("/profile", status_code=204)
+def delete_profile(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
+    deleted = crud.delete_user_profile(db, current_user.id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Profile not found")
 
 
 
