@@ -22,16 +22,20 @@ class GoalEnum(str, Enum):
 
 # User Schemas
 class UserCreate(BaseModel):
+    username: str
+    full_name: str
     email: EmailStr
     password: str
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    username: str
     password: str
 
 class User(BaseModel):
     id: int
-    email: str
+    username: str
+    full_name: str
+    email: EmailStr
     created_at: datetime
     
     class Config:
