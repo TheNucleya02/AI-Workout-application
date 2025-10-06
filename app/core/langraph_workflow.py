@@ -68,6 +68,9 @@ def calculate_daily_calories(bmr: float, activity_level: str) -> float:
 def adjust_calories_for_goal(daily_calories: float, goal_type: str, target_weight: float, current_weight: float, target_days: int) -> float:
     """Adjust calories based on user goals"""
     if goal_type == "Fat loss":
+        if target_days == 0:
+            raise ValueError("target_days cannot be zero.")
+        
         weekly_loss = (current_weight - target_weight) / (target_days / 7)
         deficit = min(weekly_loss * 1000, 1000)  # Max 1000 cal deficit
         return daily_calories - deficit

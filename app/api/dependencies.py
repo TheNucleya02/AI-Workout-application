@@ -16,9 +16,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/users/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/token")
 
 def verify_password(plain_password, hashed_password):
+    # bcrypt only supports passwords up to 72 bytes
+    plain_password = plain_password[:72]
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password):
