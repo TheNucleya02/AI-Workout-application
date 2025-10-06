@@ -107,7 +107,7 @@ class WorkoutPlanResponse(BaseModel):
 class ChatMessage(BaseModel):
     user_id: int
     message: str
-
+    
 class ChatResponse(BaseModel):
     response: str
     created_at: datetime

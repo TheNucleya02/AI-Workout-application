@@ -72,3 +72,34 @@ def create_user_goals(
     db.commit()
     db.refresh(db_goals)
     return db_goals
+
+
+@router.put("/profile", response_model=schemas.UserProfile)
+def update_user_profile(
+    profile_update: schemas.UserProfileCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db_profile = db.query(models.UserProfile).filter(models.UserProfile.user_id == current_user.id).first()
+    if not db_profile:
+        raise HTTPException(status_code=404, detail="User profile not found")
+    for key, value in profile_update.dict().items():
+        setattr(db_profile, key, value)
+    db.commit()
+    db.refresh(db_profile)
+    return db_profile
+
+@router.put("/goals", response_model=schemas.UserGoals)
+def update_user_goals(
+    goals_update: schemas.UserGoalsCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db_goals = db.query(models.UserGoals).filter(models.UserGoals.user_id == current_user.id).first()
+    if not db_goals:
+        raise HTTPException(status_code=404, detail="User goals not found")
+    for key, value in goals_update.dict().items():
+        setattr(db_goals, key, value)
+    db.commit()
+    db.refresh(db_goals)
+    return db_goals

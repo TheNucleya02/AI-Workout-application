@@ -6,6 +6,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 import json
+import re
 import os
 from .config import settings
 
@@ -80,7 +81,7 @@ def adjust_calories_for_goal(daily_calories: float, goal_type: str, target_weigh
         return daily_calories  # Maintenance
 
 def generate_nutrition_plan(state: FitnessAppState) -> FitnessAppState:
-    """Generate personalized nutrition plan using LLM"""
+    """Generate personalized nutrition plan using LLM with structured JSON output."""
     
     # Calculate BMR and daily calorie needs
     bmr = calculate_bmr(state["height"], state["weight"], state["age"], state["gender"])
@@ -94,73 +95,116 @@ def generate_nutrition_plan(state: FitnessAppState) -> FitnessAppState:
         state["weight"],
         state["target_days"]
     )
-    
+
     # Nutrition prompt for LLM
     nutrition_prompt = f"""
-    Create a detailed nutrition plan for a user with the following profile:
+    You are a fitness and nutrition expert. 
+    Create a detailed, personalized nutrition plan for the following user profile:
     - Age: {state['age']}, Gender: {state['gender']}
-    - Height: {state['height']}cm, Weight: {state['weight']}kg
+    - Height: {state['height']} cm, Weight: {state['weight']} kg
     - Activity Level: {state['activity_level']}
-    - Goal: {state['goal_type']}, Target Weight: {state['target_weight']}kg in {state['target_days']} days
+    - Goal: {state['goal_type']}, Target Weight: {state['target_weight']} kg in {state['target_days']} days
     - Target Daily Calories: {target_calories}
     - Additional Notes: {state['user_notes']}
-    
-    Provide the answer in valid JSON format with keys:
-    - daily_calories
-    - macros (protein, carbs, fats in grams)
-    - meal_plan (detailed plan)
-    - hydration
-    - supplements
+
+    Provide the response *only* in valid JSON format with the following keys:
+    {{
+        "daily_calories": number,
+        "macros": {{
+            "protein": number,
+            "carbs": number,
+            "fats": number
+        }},
+        "meal_plan": {{
+            "breakfast": string,
+            "lunch": string,
+            "dinner": string,
+            "snacks": string
+        }},
+        "hydration": string,
+        "supplements": string
+    }}
     """
-    
+
     response = llm.invoke(nutrition_prompt)
-    
-    # Try parsing JSON if model returns structured
+    response_text = str(getattr(response, "content", response)).strip()
+
+    # Attempt to extract JSON substring if extra text appears
+    match = re.search(r'\{.*\}', response_text, re.DOTALL)
+    json_str = match.group(0) if match else response_text
+
+    # Parse JSON safely
     try:
-        response_text = str(response.content) if hasattr(response, "content") else str(response)
-        nutrition_plan = json.loads(response_text)
-    except Exception:
-        # Fallback if model didn't give strict JSON
-        nutrition_plan = {"plan_text": str(response)}
-    
+        nutrition_plan = json.loads(json_str)
+    except json.JSONDecodeError:
+        # fallback: structured but with default placeholders
+        nutrition_plan = {
+            "daily_calories": target_calories,
+            "macros": {"protein": None, "carbs": None, "fats": None},
+            "meal_plan": {"breakfast": "", "lunch": "", "dinner": "", "snacks": ""},
+            "hydration": "",
+            "supplements": "",
+            "raw_response": response_text  # store the raw LLM text for debugging
+        }
+
+    # Attach to state and return
     state["nutrition_plan"] = nutrition_plan
     return state
 
 def generate_workout_plan(state: FitnessAppState) -> FitnessAppState:
-    """Generate personalized workout plan"""
+    """Generate personalized workout plan with structured JSON output."""
     
+    # Prompt for LLM
     workout_prompt = f"""
-    Create a detailed workout plan for a user with the following profile:
+    You are a professional fitness trainer.
+    Create a detailed, personalized workout plan for the following user profile:
     - Age: {state['age']}, Gender: {state['gender']}
-    - Height: {state['height']}cm, Weight: {state['weight']}kg
+    - Height: {state['height']} cm, Weight: {state['weight']} kg
     - Activity Level: {state['activity_level']}
-    - Goal: {state['goal_type']}, Target Weight: {state['target_weight']}kg in {state['target_days']} days
-    - Nutrition Plan: {state['nutrition_plan']}
+    - Goal: {state['goal_type']}, Target Weight: {state['target_weight']} kg in {state['target_days']} days
+    - Nutrition Plan Summary: {state['nutrition_plan']}
     - Additional Notes: {state['user_notes']}
     
-    Provide:
-    1. Weekly workout schedule
-    2. Exercise types and intensity
-    3. Progressive overload plan
-    4. Recovery recommendations
-    5. Alternative exercises for equipment limitations
-
-    Provide the answer in valid JSON format with keys:
-    - weekly_schedule
-    - progression
-    - recovery
+    Provide the response strictly in valid JSON format with the following structure:
+    {{
+        "weekly_schedule": {{
+            "monday": string,
+            "tuesday": string,
+            "wednesday": string,
+            "thursday": string,
+            "friday": string,
+            "saturday": string,
+            "sunday": string
+        }},
+        "progression": string,
+        "recovery": string
+    }}
     """
-    
+
+    # Invoke the LLM
     response = llm.invoke(workout_prompt)
-    
-    # Try parsing JSON if model returns structured
+    response_text = str(getattr(response, "content", response)).strip()
+
+    # Extract only JSON substring if LLM adds extra commentary
+    match = re.search(r'\{.*\}', response_text, re.DOTALL)
+    json_str = match.group(0) if match else response_text
+
+    # Try parsing structured JSON
     try:
-        response_text = str(response.content) if hasattr(response, "content") else str(response)
-        workout_plan = json.loads(response_text)
-    except Exception:
-        # Fallback if model didn't give strict JSON
-        workout_plan = {"plan_text": str(response)}
-    
+        workout_plan = json.loads(json_str)
+    except json.JSONDecodeError:
+        # Fallback if JSON parsing fails
+        workout_plan = {
+            "weekly_schedule": {
+                "monday": "", "tuesday": "", "wednesday": "",
+                "thursday": "", "friday": "", "saturday": "", "sunday": ""
+            },
+            "progression": "",
+            "recovery": "",
+            "raw_response": response_text
+        }
+
+    # Attach to state and return
     state["workout_plan"] = workout_plan
     return state
 
@@ -218,15 +262,17 @@ class FitnessWorkflowManager:
         
         return workflow.compile(checkpointer=self.memory)
     
-    def generate_plans(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate nutrition and workout plans"""
+    def generate_nutrition_plan(self, user_data: dict) -> dict:
         state = FitnessAppState(**user_data)
-        config = RunnableConfig(configurable={"thread_id": f"user_{user_data.get('user_id', 'unknown')}"})
-        
-        result = self.workflow.invoke(state, config)
-        return result
+        result = generate_nutrition_plan(state)
+        return dict(result)
+
+    def generate_workout_plan(self, user_data: dict) -> dict:
+        state = FitnessAppState(**user_data)
+        result = generate_workout_plan(state)
+        return dict(result)
     
-    def chat_with_ai(self, user_data: Dict[str, Any], query: str) -> str:
+    def chat_with_AI(self, user_data: Dict[str, Any], query: str) -> str:
         """Handle chat queries"""
         state = FitnessAppState(**user_data)
         state["chat_query"] = query

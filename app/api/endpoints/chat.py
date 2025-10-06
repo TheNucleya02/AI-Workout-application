@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
+import json
 from ...core.database import get_db
 from ...core.langraph_workflow import workflow_manager
 from ...models import models, schemas
+from ...utils import helpers
 from ..dependencies import get_current_user
 
 router = APIRouter()
@@ -59,22 +60,34 @@ def chat_with_ai(
     }
     
     # Get AI response
-    response = workflow_manager.chat_with_ai(user_data, message.message)
-    
-    # Save chat history
+    response = workflow_manager.chat_with_AI(user_data, message.message)
+    # Ensure response is JSON serializable
+    try:
+        # If response is a string, try to parse it as JSON
+        if isinstance(response, str):
+            response_json = json.loads(response)
+        else:
+            response_json = response
+    except (json.JSONDecodeError, TypeError):
+        # Handle non-JSON output gracefully
+        response_json = {
+            "error": "AI returned an unexpected response. Please try again later.",
+            "raw_response": str(response)
+        }
+
     chat_history = models.ChatHistory(
         user_id=current_user.id,
         message=message.message,
-        response=response
+        response=json.dumps(response_json),  # Save as JSON string
     )
     db.add(chat_history)
     db.commit()
     db.refresh(chat_history)
-    
+
     return schemas.ChatResponse(
-        response=response,
-        created_at=chat_history.created_at.scalar()
-    )
+        response=json.dumps(response_json),
+        created_at=chat_history.created_at,  # type: ignore
+    )   
 
 @router.get("/chat/history")
 def get_chat_history(
@@ -89,7 +102,7 @@ def get_chat_history(
     return [
         {
             "message": chat.message,
-            "response": chat.response,
+            "response": chat.formatted_output,
             "created_at": chat.created_at
         }
         for chat in history

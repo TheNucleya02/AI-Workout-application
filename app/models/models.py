@@ -62,7 +62,7 @@ class NutritionPlan(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
-    plan_data = Column(JSON)  # Store the generated nutrition plan
+    plan_data = Column(JSON)  
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class WorkoutPlan(Base):
@@ -70,7 +70,7 @@ class WorkoutPlan(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
-    plan_data = Column(JSON)  # Store the generated workout plan
+    plan_data = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class ChatHistory(Base):
@@ -79,5 +79,5 @@ class ChatHistory(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
     message = Column(Text)
-    response = Column(Text)
+    response = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
