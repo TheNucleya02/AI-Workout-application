@@ -67,7 +67,6 @@ def generate_nutrition_plan(
         # Model already returned structured JSON
         nutrition_json = nutrition_plan_data
 
-
     nutrition_plan = models.NutritionPlan(
         user_id=current_user.id,
         plan_data=nutrition_json,
@@ -146,7 +145,6 @@ def generate_workout_plan(
     else:
         # Already structured JSON
         workout_json = workout_plan_data
-
 
     workout_plan = models.WorkoutPlan(
         user_id=current_user.id,

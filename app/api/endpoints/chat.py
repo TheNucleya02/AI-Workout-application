@@ -61,31 +61,18 @@ def chat_with_ai(
     
     # Get AI response
     response = workflow_manager.chat_with_AI(user_data, message.message)
-    # Ensure response is JSON serializable
-    try:
-        # If response is a string, try to parse it as JSON
-        if isinstance(response, str):
-            response_json = json.loads(response)
-        else:
-            response_json = response
-    except (json.JSONDecodeError, TypeError):
-        # Handle non-JSON output gracefully
-        response_json = {
-            "error": "AI returned an unexpected response. Please try again later.",
-            "raw_response": str(response)
-        }
 
     chat_history = models.ChatHistory(
         user_id=current_user.id,
         message=message.message,
-        response=json.dumps(response_json),  # Save as JSON string
+        response=response
     )
     db.add(chat_history)
     db.commit()
     db.refresh(chat_history)
 
     return schemas.ChatResponse(
-        response=json.dumps(response_json),
+        response=response,
         created_at=chat_history.created_at,  # type: ignore
     )   
 
@@ -102,7 +89,7 @@ def get_chat_history(
     return [
         {
             "message": chat.message,
-            "response": chat.formatted_output,
+            "response": chat.response,
             "created_at": chat.created_at
         }
         for chat in history
