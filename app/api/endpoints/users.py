@@ -55,8 +55,13 @@ def create_user_profile(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    db_profile = models.UserProfile(**profile.model_dump(), user_id=current_user.id)
-    db.add(db_profile)
+    db_profile = db.query(models.UserProfile).filter(models.UserProfile.user_id == current_user.id).first()
+    if db_profile:
+        for key, value in profile.model_dump().items():
+            setattr(db_profile, key, value)
+    else:
+        db_profile = models.UserProfile(**profile.model_dump(), user_id=current_user.id)
+        db.add(db_profile)
     db.commit()
     db.refresh(db_profile)
     return db_profile
@@ -67,8 +72,13 @@ def create_user_goals(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    db_goals = models.UserGoals(**goals.model_dump(), user_id=current_user.id)
-    db.add(db_goals)
+    db_goals = db.query(models.UserGoals).filter(models.UserGoals.user_id == current_user.id).first()
+    if db_goals:
+        for key, value in goals.model_dump().items():
+            setattr(db_goals, key, value)
+    else:
+        db_goals = models.UserGoals(**goals.model_dump(), user_id=current_user.id)
+        db.add(db_goals)
     db.commit()
     db.refresh(db_goals)
     return db_goals

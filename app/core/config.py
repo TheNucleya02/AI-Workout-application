@@ -4,7 +4,8 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "sqlite:///./fitness_app.db"
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/fitness_db"
+    REDIS_URL: str = "redis://localhost:6379/0"
     
     # Google AI API
     GOOGLE_API_KEY: str

@@ -211,6 +211,14 @@ def generate_workout_plan(state: FitnessAppState) -> FitnessAppState:
 def handle_chat_query(state: FitnessAppState) -> FitnessAppState:
     """Handle general user queries in chat"""
     
+    # Format recent chat history if available
+    history_str = ""
+    if state.get("chat_messages"):
+        history_str = "\n".join([
+            f"User: {msg['user']}\nAssistant: {msg['assistant']}"
+            for msg in state["chat_messages"]
+        ])
+    
     chat_prompt = f"""
     User context:
     - Profile: Age {state['age']}, {state['gender']}, {state['height']}cm, {state['weight']}kg
@@ -220,12 +228,16 @@ def handle_chat_query(state: FitnessAppState) -> FitnessAppState:
     - Current Nutrition Plan: {state['nutrition_plan']}
     - Current Workout Plan: {state['workout_plan']}
     
+    Chat History:
+    {history_str}
+    
     User Question: {state['chat_query']}
     
-    Provide a helpful, personalized response considering their profile and plans.
+    Provide a helpful, personalized response considering their profile, plans, and the chat history.
     """
     
     response = llm.invoke(chat_prompt)
+    response_content = str(getattr(response, "content", response))
     
     # Add to chat history
     if not state["chat_messages"]:
@@ -233,10 +245,10 @@ def handle_chat_query(state: FitnessAppState) -> FitnessAppState:
     
     state["chat_messages"].append({
         "user": state["chat_query"] or "",
-        "assistant": str(response)
+        "assistant": response_content
     })
     
-    state["chat_response"] = str(response)
+    state["chat_response"] = response_content
     state["chat_query"] = None
     return state
 

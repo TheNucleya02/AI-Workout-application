@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, JSON
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, JSON, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from enum import Enum
 
@@ -32,12 +33,17 @@ class User(Base):
     hashed_password = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    goals = relationship("UserGoals", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    nutrition_plans = relationship("NutritionPlan", back_populates="user", cascade="all, delete-orphan")
+    workout_plans = relationship("WorkoutPlan", back_populates="user", cascade="all, delete-orphan")
 
 class UserProfile(Base):
     __tablename__ = "user_profiles"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    user = relationship("User", back_populates="profile")
     height = Column(Float)  # in cm
     weight = Column(Float)  # in kg
     age = Column(Integer)
@@ -50,7 +56,8 @@ class UserGoals(Base):
     __tablename__ = "user_goals"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    user = relationship("User", back_populates="goals")
     goal_type = Column(String)
     target_weight = Column(Float)
     target_days = Column(Integer)
@@ -61,7 +68,8 @@ class NutritionPlan(Base):
     __tablename__ = "nutrition_plans"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    user = relationship("User", back_populates="nutrition_plans")
     plan_data = Column(JSON)  
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -69,7 +77,8 @@ class WorkoutPlan(Base):
     __tablename__ = "workout_plans"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    user = relationship("User", back_populates="workout_plans")
     plan_data = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -81,3 +90,15 @@ class ChatHistory(Base):
     message = Column(Text)
     response = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class GenerationTask(Base):
+    __tablename__ = "generation_tasks"
+    
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    task_type = Column(String)  # 'nutrition' or 'workout'
+    status = Column(String, default="PENDING")  # 'PENDING', 'PROCESSING', 'SUCCESS', 'FAILED'
+    result = Column(JSON, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

@@ -13,3 +13,6 @@ langgraph
 langchain-google-genai
 langchain-core
 pydantic-settings
+celery
+redis
+

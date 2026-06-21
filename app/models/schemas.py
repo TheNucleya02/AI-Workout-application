@@ -119,3 +119,17 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+# Task Schemas
+class TaskResponse(BaseModel):
+    id: str
+    user_id: int
+    task_type: str
+    status: str
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
