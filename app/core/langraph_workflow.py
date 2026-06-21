@@ -295,5 +295,129 @@ class FitnessWorkflowManager:
         result = handle_chat_query(state)
         return result["chat_response"] or ""
 
+    def adapt_workout_plan(
+        self,
+        user_data: Dict[str, Any],
+        feedback_text: str,
+        feedback_history: List[Dict[str, str]],
+    ) -> Dict[str, Any]:
+        """
+        Surgically adapt the current workout plan based on user feedback.
+        feedback_history: list of {feedback_text, changes_summary} dicts (oldest→newest).
+        Returns the updated plan dict (same schema as WorkoutPlan.plan_data) with an
+        extra top-level key 'changes_summary' holding a plain-English description.
+        """
+        current_plan = user_data.get("workout_plan") or {}
+
+        # Build cumulative constraints from past feedback
+        history_block = ""
+        if feedback_history:
+            history_block = "Previously applied user preferences (must all still be respected):\n"
+            for i, fb in enumerate(feedback_history, 1):
+                history_block += (
+                    f"  {i}. Feedback: \"{fb['feedback_text']}\" "
+                    f"→ Change made: {fb.get('changes_summary', 'N/A')}\n"
+                )
+
+        prompt = f"""You are an expert personal trainer adapting a workout plan based on user feedback.
+
+CURRENT WORKOUT PLAN (JSON):
+{json.dumps(current_plan, indent=2)}
+
+USER PROFILE:
+- Age: {user_data.get('age')}, Gender: {user_data.get('gender')}
+- Height: {user_data.get('height')} cm, Weight: {user_data.get('weight')} kg
+- Activity Level: {user_data.get('activity_level')}
+- Goal: {user_data.get('goal_type')}, Target Weight: {user_data.get('target_weight')} kg in {user_data.get('target_days')} days
+
+{history_block}
+
+NEW USER FEEDBACK: "{feedback_text}"
+
+INSTRUCTIONS:
+1. Make the MINIMAL necessary changes to satisfy the new feedback while honouring all past preferences above.
+2. Keep the overall plan structure and goal intact — only modify what must change.
+3. Return the COMPLETE updated plan as valid JSON using the EXACT same schema as the current plan above.
+4. Add one extra top-level key "changes_summary" (string) with a concise human-readable description of what you changed and why.
+
+Return ONLY valid JSON. No markdown, no explanation outside the JSON.
+"""
+        response = llm.invoke(prompt)
+        response_text = str(getattr(response, "content", response)).strip()
+
+        match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        json_str = match.group(0) if match else response_text
+
+        try:
+            updated_plan = json.loads(json_str)
+        except json.JSONDecodeError:
+            # Fallback: return original plan with error note
+            updated_plan = dict(current_plan)
+            updated_plan["changes_summary"] = (
+                f"Could not parse AI response. Raw: {response_text[:300]}"
+            )
+
+        return updated_plan
+
+    def adapt_nutrition_plan(
+        self,
+        user_data: Dict[str, Any],
+        feedback_text: str,
+        feedback_history: List[Dict[str, str]],
+    ) -> Dict[str, Any]:
+        """
+        Surgically adapt the current nutrition plan based on user feedback.
+        Same contract as adapt_workout_plan.
+        """
+        current_plan = user_data.get("nutrition_plan") or {}
+
+        history_block = ""
+        if feedback_history:
+            history_block = "Previously applied user preferences (must all still be respected):\n"
+            for i, fb in enumerate(feedback_history, 1):
+                history_block += (
+                    f"  {i}. Feedback: \"{fb['feedback_text']}\" "
+                    f"→ Change made: {fb.get('changes_summary', 'N/A')}\n"
+                )
+
+        prompt = f"""You are an expert nutritionist adapting a nutrition plan based on user feedback.
+
+CURRENT NUTRITION PLAN (JSON):
+{json.dumps(current_plan, indent=2)}
+
+USER PROFILE:
+- Age: {user_data.get('age')}, Gender: {user_data.get('gender')}
+- Height: {user_data.get('height')} cm, Weight: {user_data.get('weight')} kg
+- Activity Level: {user_data.get('activity_level')}
+- Goal: {user_data.get('goal_type')}, Target Weight: {user_data.get('target_weight')} kg in {user_data.get('target_days')} days
+
+{history_block}
+
+NEW USER FEEDBACK: "{feedback_text}"
+
+INSTRUCTIONS:
+1. Make the MINIMAL necessary changes to satisfy the new feedback while honouring all past preferences above.
+2. Preserve total daily calories and macro targets unless the feedback explicitly requires changing them.
+3. Return the COMPLETE updated plan as valid JSON using the EXACT same schema as the current plan above.
+4. Add one extra top-level key "changes_summary" (string) with a concise human-readable description of what you changed and why.
+
+Return ONLY valid JSON. No markdown, no explanation outside the JSON.
+"""
+        response = llm.invoke(prompt)
+        response_text = str(getattr(response, "content", response)).strip()
+
+        match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        json_str = match.group(0) if match else response_text
+
+        try:
+            updated_plan = json.loads(json_str)
+        except json.JSONDecodeError:
+            updated_plan = dict(current_plan)
+            updated_plan["changes_summary"] = (
+                f"Could not parse AI response. Raw: {response_text[:300]}"
+            )
+
+        return updated_plan
+
 # Global instance
 workflow_manager = FitnessWorkflowManager()

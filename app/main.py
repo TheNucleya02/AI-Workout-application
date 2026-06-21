@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from .core.config import settings
 from .core.database import engine
 from .models import models
-from .api.endpoints import users, fitness, chat
+from .api.endpoints import users, fitness, chat, tracking, feedback
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -28,6 +28,8 @@ app.add_middleware(
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(fitness.router, prefix="/api/fitness", tags=["fitness"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
+app.include_router(tracking.router, prefix="/api/tracking", tags=["tracking"])
+app.include_router(feedback.router, prefix="/api/feedback", tags=["feedback"])
 
 @app.get("/")
 def read_root():
