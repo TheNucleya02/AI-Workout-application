@@ -35,10 +35,20 @@ def generate_nutrition_plan(
         models.GenerationTask.status.in_(["PENDING", "PROCESSING"])
     ).first()
     if active_task:
-        raise HTTPException(
-            status_code=400,
-            detail="A nutrition plan generation task is already in progress."
-        )
+        # If the active task is stale (older than 1 hour), mark it failed and allow a new task.
+        stale_threshold = datetime.utcnow() - timedelta(hours=1)
+        if active_task.created_at and active_task.created_at < stale_threshold:
+            try:
+                active_task.status = "FAILED"
+                active_task.error = "Automatically marked FAILED due to being stuck >1 hour"
+                db.commit()
+            except Exception:
+                db.rollback()
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="A nutrition plan generation task is already in progress."
+            )
 
     one_day_ago = datetime.utcnow() - timedelta(days=1)
     recent_plan = db.query(models.NutritionPlan).filter(
@@ -99,10 +109,20 @@ def generate_workout_plan(
         models.GenerationTask.status.in_(["PENDING", "PROCESSING"])
     ).first()
     if active_task:
-        raise HTTPException(
-            status_code=400,
-            detail="A workout plan generation task is already in progress."
-        )
+        # If the active task is stale (older than 1 hour), mark it failed and allow a new task.
+        stale_threshold = datetime.utcnow() - timedelta(hours=1)
+        if active_task.created_at and active_task.created_at < stale_threshold:
+            try:
+                active_task.status = "FAILED"
+                active_task.error = "Automatically marked FAILED due to being stuck >1 hour"
+                db.commit()
+            except Exception:
+                db.rollback()
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="A workout plan generation task is already in progress."
+            )
 
     one_day_ago = datetime.utcnow() - timedelta(days=1)
     recent_plan = db.query(models.WorkoutPlan).filter(

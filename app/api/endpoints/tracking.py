@@ -118,7 +118,7 @@ def get_today_log(
     Get the daily workout log for today (or a specific date).
     Auto-creates an empty log if one doesn't exist yet.
     The response includes the list of completed exercises and the user's active
-    workout plan id so the frontend can fetch today's scheduled exercises.
+    workout plan id so clients can fetch today's scheduled exercises.
     """
     target_date = log_date or date.today()
     daily_log = _get_or_create_daily_log(current_user.id, target_date, db)

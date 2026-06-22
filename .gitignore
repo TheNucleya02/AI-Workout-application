@@ -73,7 +73,7 @@ Thumbs.db
 # Jupyter Notebooks
 .ipynb_checkpoints/
 
-# --- If you also have frontend (React/Vue etc.) ---
-node_modules/
-npm-debug.log
-yarn-error.log
+# Node / frontend artifacts (uncomment if you add a frontend)
+# node_modules/
+# npm-debug.log
+# yarn-error.log

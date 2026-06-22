@@ -105,7 +105,6 @@ class WorkoutPlanResponse(BaseModel):
 
 # Chat Schemas
 class ChatMessage(BaseModel):
-    user_id: int
     message: str
     
 class ChatResponse(BaseModel):
